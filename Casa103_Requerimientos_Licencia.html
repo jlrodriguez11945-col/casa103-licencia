@@ -328,32 +328,42 @@ function render() {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-// Esperar a que tanto tasks como colorMap lleguen antes del primer render
-let tasksReady = false;
-let colorMapReady = false;
-
-function tryRender() {
-  if (tasksReady && colorMapReady) render();
-}
-
-onValue(ref(db, "tasks"), (snapshot) => {
-  const data = snapshot.val() || {};
+// Carga inicial: get() garantiza que ambos lleguen antes del primer render
+Promise.all([
+  get(ref(db, "tasks")),
+  get(ref(db, "colorMap"))
+]).then(([tasksSnap, colorSnap]) => {
+  const data = tasksSnap.val() || {};
   DATA.forEach((cat, ci) => {
-    cat.items.forEach((item, ii) => {
+    cat.items.forEach((_, ii) => {
       const id = buildId(ci, ii);
-      if (data[id]) state[id] = data[id];
-      else if (!state[id]) state[id] = { done: false, responsible: "", due: "", obs: "" };
+      state[id] = data[id] || { done: false, responsible: "", due: "", obs: "" };
     });
   });
-  tasksReady = true;
-  tryRender();
-});
+  if (colorSnap.val()) colorMap = colorSnap.val();
+  render();
 
-onValue(ref(db, "colorMap"), (snapshot) => {
-  const data = snapshot.val();
-  if (data) colorMap = data;
-  colorMapReady = true;
-  tryRender();
+  // Después del primer render, escuchar cambios en tiempo real de otros usuarios
+  onValue(ref(db, "tasks"), (snapshot) => {
+    const updated = snapshot.val() || {};
+    DATA.forEach((cat, ci) => {
+      cat.items.forEach((_, ii) => {
+        const id = buildId(ci, ii);
+        const remote = updated[id];
+        if (remote) state[id] = remote;
+        else if (!state[id]) state[id] = { done: false, responsible: "", due: "", obs: "" };
+      });
+    });
+    render();
+  });
+
+  onValue(ref(db, "colorMap"), (snapshot) => {
+    if (snapshot.val()) colorMap = snapshot.val();
+  });
+
+}).catch(err => {
+  document.getElementById("categories").innerHTML = '<div class="loading">Error al conectar con Firebase. Recarga la página.</div>';
+  console.error(err);
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
