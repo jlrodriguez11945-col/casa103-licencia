@@ -238,6 +238,9 @@ function parseFirebaseVal(val) {
 }
 
 function render(preserveCollapsed = true) {
+  try { _render(preserveCollapsed); } catch(e) { dbg("[render EXCEPCION] " + e.name + ": " + e.message + "\n" + (e.stack||"").slice(0,400)); }
+}
+function _render(preserveCollapsed = true) {
   const stateKeys = Object.keys(state);
   dbg("[render] state.keys=" + stateKeys.length + " filtro=" + currentFilter + " resp=" + currentResp + " muestra=" + stateKeys.slice(0,4).join(","));
 
