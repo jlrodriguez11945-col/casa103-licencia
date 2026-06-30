@@ -221,7 +221,7 @@ function saveAll() {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
     // Guardar como JSON string para evitar problemas de Firebase con objetos
-    set(ref(db, "state_json"), JSON.stringify(state))
+    set(ref(db, "tasks_json"), JSON.stringify(state))
       .then(() => setStatus("Guardado ✓"))
       .catch(() => setStatus("Error al guardar"));
   }, 400);
@@ -348,20 +348,31 @@ function render(preserveCollapsed = true) {
 
 const TOTAL_TASKS = DATA.reduce((sum, cat) => sum + cat.items.length, 0);
 
-// Carga inicial
+// Cargar: intenta tasks_json primero, si vacío migra desde tasks (nodo antiguo)
 Promise.all([
-  get(ref(db, "state_json")),
+  get(ref(db, "tasks_json")),
+  get(ref(db, "tasks")),
   get(ref(db, "colorMap"))
-]).then(([snap, colorSnap]) => {
+]).then(([newSnap, oldSnap, colorSnap]) => {
   let saved = {};
-  try { if (snap.val()) saved = JSON.parse(snap.val()); } catch(e) {}
+  try {
+    if (newSnap.val()) {
+      // Datos nuevos (JSON string)
+      saved = JSON.parse(newSnap.val());
+    } else if (oldSnap.val()) {
+      // Migrar datos del nodo antiguo (objeto con claves t_0_0, t_0_1, etc.)
+      saved = oldSnap.val();
+      // Guardar en nuevo formato para próximas cargas
+      set(ref(db, "tasks_json"), JSON.stringify(buildFullState(saved)));
+    }
+  } catch(e) { saved = {}; }
   if (colorSnap.val()) colorMap = colorSnap.val();
   state = buildFullState(saved);
   render(false);
 
   // Escuchar cambios de otros usuarios (ignorar primer disparo que ya cargamos)
   let firstFire = true;
-  onValue(ref(db, "state_json"), (s) => {
+  onValue(ref(db, "tasks_json"), (s) => {
     if (firstFire) { firstFire = false; return; }
     let remote = {};
     try { if (s.val()) remote = JSON.parse(s.val()); } catch(e) {}
