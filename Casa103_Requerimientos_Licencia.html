@@ -60,6 +60,8 @@
   .badge-pending { background: var(--amber-bg); color: var(--amber); }
   .save-status { font-size: 11px; color: var(--text-muted); text-align: right; margin-bottom: 6px; min-height: 14px; }
   .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  .error-banner { background: #fdecea; border: 1px solid #f5c6cb; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7c2d2d; display: none; }
+  .error-banner strong { display: block; margin-bottom: 4px; }
   footer { margin-top: 24px; font-size: 12px; color: var(--text-muted); text-align: center; }
   .online-badge { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3B6D11; margin-right: 4px; }
 </style>
@@ -82,6 +84,7 @@
     <select id="resp-filter" style="margin-left:auto;"><option value="all">Todos los responsables</option></select>
   </div>
 
+  <div id="error-banner" class="error-banner"><strong>Error de conexión con Firebase</strong><span id="error-detail"></span></div>
   <div id="save-status" class="save-status"></div>
   <div id="categories"><div class="loading">Conectando con Firebase...</div></div>
   <footer>Cambios sincronizados en tiempo real para todos los usuarios · RequerimientosLicC103</footer>
@@ -389,6 +392,9 @@ Promise.all([
 
 }).catch((err) => {
   console.error("Firebase error:", err);
+  const banner = document.getElementById("error-banner");
+  document.getElementById("error-detail").textContent = " " + (err.code || err.message || String(err));
+  banner.style.display = "block";
   state = buildFullState({});
   render();
   setStatus("Sin conexión — trabajando en modo local");
