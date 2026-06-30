@@ -220,11 +220,18 @@ let saveTimeout = null;
 function saveAll() {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
-    // Guardar como JSON string para evitar problemas de Firebase con objetos
-    set(ref(db, "tasks_json"), JSON.stringify(state))
+    set(ref(db, "tasks"), state)
       .then(() => setStatus("Guardado ✓"))
       .catch(() => setStatus("Error al guardar"));
   }, 400);
+}
+
+function parseFirebaseVal(val) {
+  if (!val) return {};
+  if (typeof val === "string") {
+    try { return JSON.parse(val); } catch(e) { return {}; }
+  }
+  return val;
 }
 
 function render(preserveCollapsed = true) {
@@ -346,37 +353,33 @@ function render(preserveCollapsed = true) {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-const TOTAL_TASKS = DATA.reduce((sum, cat) => sum + cat.items.length, 0);
-
-// Cargar: intenta tasks_json primero, si vacío migra desde tasks (nodo antiguo)
+// Carga inicial: tasks (primario) con fallback a tasks_json (legado)
 Promise.all([
-  get(ref(db, "tasks_json")),
   get(ref(db, "tasks")),
+  get(ref(db, "tasks_json")),
   get(ref(db, "colorMap"))
-]).then(([newSnap, oldSnap, colorSnap]) => {
+]).then(([tasksSnap, legacySnap, colorSnap]) => {
   let saved = {};
-  try {
-    if (newSnap.val()) {
-      // Datos nuevos (JSON string)
-      saved = JSON.parse(newSnap.val());
-    } else if (oldSnap.val()) {
-      // Migrar datos del nodo antiguo (objeto con claves t_0_0, t_0_1, etc.)
-      saved = oldSnap.val();
-      // Guardar en nuevo formato para próximas cargas
-      set(ref(db, "tasks_json"), JSON.stringify(buildFullState(saved)));
-    }
-  } catch(e) { saved = {}; }
+  const tasksVal = tasksSnap.val();
+  const legacyVal = legacySnap.val();
+
+  if (tasksVal) {
+    saved = parseFirebaseVal(tasksVal);
+  } else if (legacyVal) {
+    saved = parseFirebaseVal(legacyVal);
+    // migrar al nodo tasks como objeto plano
+    set(ref(db, "tasks"), buildFullState(saved));
+  }
+
   if (colorSnap.val()) colorMap = colorSnap.val();
   state = buildFullState(saved);
   render(false);
 
-  // Escuchar cambios de otros usuarios (ignorar primer disparo que ya cargamos)
+  // Escuchar cambios de otros usuarios en el nodo tasks
   let firstFire = true;
-  onValue(ref(db, "tasks_json"), (s) => {
+  onValue(ref(db, "tasks"), (s) => {
     if (firstFire) { firstFire = false; return; }
-    let remote = {};
-    try { if (s.val()) remote = JSON.parse(s.val()); } catch(e) {}
-    state = buildFullState(remote);
+    state = buildFullState(parseFirebaseVal(s.val()));
     render(false);
   });
 
