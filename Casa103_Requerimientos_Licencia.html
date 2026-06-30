@@ -198,7 +198,7 @@ function colorForResp(name) {
   while (usedIdx.has(idx) && idx < RESP_PALETTE.length - 1) idx++;
   const color = { idx, ...RESP_PALETTE[idx] };
   colorMap[name] = color;
-  set(ref(db, "colorMap"), colorMap);
+  set(ref(db, "colorMap"), JSON.stringify(colorMap));
   return color;
 }
 
@@ -396,7 +396,7 @@ onValue(ref(db, "tasks"), (snap) => {
         dbg("[load] AMBOS NODOS VACÍOS — base de datos vacía en estas rutas");
       }
 
-      get(ref(db, "colorMap")).then(cs => { if (cs.val()) colorMap = cs.val(); });
+      get(ref(db, "colorMap")).then(cs => { if (cs.val()) colorMap = parseFirebaseVal(cs.val()); });
       state = buildFullState(saved);
       render(false);
     });
@@ -415,7 +415,7 @@ onValue(ref(db, "tasks"), (snap) => {
 });
 
 onValue(ref(db, "colorMap"), (s) => {
-  if (s.val()) { colorMap = s.val(); if (initialized) render(false); }
+  if (s.val()) { colorMap = parseFirebaseVal(s.val()); if (initialized) render(false); }
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
