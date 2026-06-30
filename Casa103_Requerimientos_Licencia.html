@@ -373,7 +373,8 @@ Promise.all([
     if (s.val()) { colorMap = s.val(); render(false); }
   });
 
-}).catch(() => {
+}).catch((err) => {
+  console.error("Firebase error:", err);
   state = buildFullState({});
   render();
   setStatus("Sin conexión — trabajando en modo local");
