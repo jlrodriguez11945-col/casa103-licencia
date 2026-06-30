@@ -190,6 +190,15 @@ let currentResp = "all";
 
 function buildId(ci, ii) { return "t_" + ci + "_" + ii; }
 
+function parseFirebaseVal(val) {
+  if (!val) return {};
+  if (typeof val === "string") { try { return JSON.parse(val); } catch(e) { return {}; } }
+  return val;
+}
+
+let colorMapTimer = null;
+let savingColorMap = false;
+
 function colorForResp(name) {
   if (!name) return null;
   if (colorMap[name]) return colorMap[name];
@@ -198,7 +207,12 @@ function colorForResp(name) {
   while (usedIdx.has(idx) && idx < RESP_PALETTE.length - 1) idx++;
   const color = { idx, ...RESP_PALETTE[idx] };
   colorMap[name] = color;
-  set(ref(db, "colorMap"), JSON.stringify(colorMap));
+  clearTimeout(colorMapTimer);
+  colorMapTimer = setTimeout(() => {
+    savingColorMap = true;
+    set(ref(db, "colorMap"), JSON.stringify(colorMap))
+      .finally(() => setTimeout(() => { savingColorMap = false; }, 500));
+  }, 800);
   return color;
 }
 
@@ -229,21 +243,7 @@ function saveAll() {
   }, 400);
 }
 
-function parseFirebaseVal(val) {
-  if (!val) return {};
-  if (typeof val === "string") {
-    try { return JSON.parse(val); } catch(e) { return {}; }
-  }
-  return val;
-}
-
 function render(preserveCollapsed = true) {
-  try { _render(preserveCollapsed); } catch(e) { dbg("[render EXCEPCION] " + e.name + ": " + e.message + "\n" + (e.stack||"").slice(0,400)); }
-}
-function _render(preserveCollapsed = true) {
-  const stateKeys = Object.keys(state);
-  dbg("[render] state.keys=" + stateKeys.length + " filtro=" + currentFilter + " resp=" + currentResp + " muestra=" + stateKeys.slice(0,4).join(","));
-
   const catsEl = document.getElementById("categories");
   const collapsedCats = new Set();
   if (preserveCollapsed) {
@@ -281,11 +281,7 @@ function _render(preserveCollapsed = true) {
 
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "task-checkbox"; cb.checked = t.done;
-      cb.addEventListener("change", () => {
-        state[id].done = cb.checked;
-        saveAll();
-        render();
-      });
+      cb.addEventListener("change", () => { state[id].done = cb.checked; saveAll(); render(); });
 
       const main = document.createElement("div");
       main.className = "task-main";
@@ -300,11 +296,7 @@ function _render(preserveCollapsed = true) {
       respInput.type = "text"; respInput.className = "resp-input";
       respInput.placeholder = "Responsable"; respInput.value = t.responsible || "";
       if (respColor) { respInput.style.borderColor = respColor.border; respInput.style.background = respColor.bg; respInput.style.color = respColor.text; }
-      respInput.addEventListener("change", () => {
-        state[id].responsible = respInput.value.trim();
-        saveAll();
-        render();
-      });
+      respInput.addEventListener("change", () => { state[id].responsible = respInput.value.trim(); saveAll(); render(); });
 
       const dueInput = document.createElement("input");
       dueInput.type = "date"; dueInput.className = "due-input"; dueInput.value = t.due || "";
@@ -330,7 +322,6 @@ function _render(preserveCollapsed = true) {
       bodyDiv.appendChild(row);
     });
 
-    dbg("[cat" + ci + "] '" + cat.cat.slice(0,20) + "' visible=" + visibleItems + " done=" + catDone + (visibleItems === 0 ? " → OMITIDA" : ""));
     if (visibleItems === 0) return;
 
     const catDiv = document.createElement("div");
@@ -363,39 +354,21 @@ function _render(preserveCollapsed = true) {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-// ── Debug visible ──────────────────────────────────────────────
-const debugEl = document.createElement("pre");
-debugEl.id = "debug-panel";
-debugEl.style.cssText = "background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:12px;font-size:11px;margin-bottom:16px;white-space:pre-wrap;word-break:break-all;color:#333;";
-document.getElementById("save-status").after(debugEl);
-function dbg(msg) { debugEl.textContent += msg + "\n"; }
-
-// ── Carga principal via onValue (más fiable que get()) ──────────
 let initialized = false;
 
 onValue(ref(db, "tasks"), (snap) => {
   const val = snap.val();
-  dbg("[tasks] tipo=" + typeof val + " valor=" + (val === null ? "null" : val === undefined ? "undefined" : JSON.stringify(val).slice(0, 120)));
-
   if (!initialized) {
     initialized = true;
-    // También revisar tasks_json como fallback
     get(ref(db, "tasks_json")).then(legacySnap => {
       const legacyVal = legacySnap.val();
-      dbg("[tasks_json] tipo=" + typeof legacyVal + " valor=" + (legacyVal === null ? "null" : JSON.stringify(legacyVal).slice(0, 120)));
-
       let saved = {};
       if (val) {
         saved = parseFirebaseVal(val);
-        dbg("[load] fuente=tasks claves=" + Object.keys(saved).length);
       } else if (legacyVal) {
         saved = parseFirebaseVal(legacyVal);
-        dbg("[load] fuente=tasks_json claves=" + Object.keys(saved).length + " → migrando a tasks");
         set(ref(db, "tasks"), buildFullState(saved));
-      } else {
-        dbg("[load] AMBOS NODOS VACÍOS — base de datos vacía en estas rutas");
       }
-
       get(ref(db, "colorMap")).then(cs => { if (cs.val()) colorMap = parseFirebaseVal(cs.val()); });
       state = buildFullState(saved);
       render(false);
@@ -405,7 +378,6 @@ onValue(ref(db, "tasks"), (snap) => {
     render(false);
   }
 }, (err) => {
-  dbg("[ERROR] " + err.code + ": " + err.message);
   const banner = document.getElementById("error-banner");
   document.getElementById("error-detail").textContent = " " + (err.code || err.message || String(err));
   banner.style.display = "block";
@@ -415,6 +387,7 @@ onValue(ref(db, "tasks"), (snap) => {
 });
 
 onValue(ref(db, "colorMap"), (s) => {
+  if (savingColorMap) return;
   if (s.val()) { colorMap = parseFirebaseVal(s.val()); if (initialized) render(false); }
 });
 
