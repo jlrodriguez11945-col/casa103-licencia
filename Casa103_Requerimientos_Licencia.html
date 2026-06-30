@@ -328,10 +328,16 @@ function render() {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-// Escuchar cambios en tiempo real desde Firebase
+// Esperar a que tanto tasks como colorMap lleguen antes del primer render
+let tasksReady = false;
+let colorMapReady = false;
+
+function tryRender() {
+  if (tasksReady && colorMapReady) render();
+}
+
 onValue(ref(db, "tasks"), (snapshot) => {
   const data = snapshot.val() || {};
-  // Mezclar con estado local para no perder cambios en vuelo
   DATA.forEach((cat, ci) => {
     cat.items.forEach((item, ii) => {
       const id = buildId(ci, ii);
@@ -339,12 +345,15 @@ onValue(ref(db, "tasks"), (snapshot) => {
       else if (!state[id]) state[id] = { done: false, responsible: "", due: "", obs: "" };
     });
   });
-  render();
+  tasksReady = true;
+  tryRender();
 });
 
 onValue(ref(db, "colorMap"), (snapshot) => {
   const data = snapshot.val();
   if (data) colorMap = data;
+  colorMapReady = true;
+  tryRender();
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
