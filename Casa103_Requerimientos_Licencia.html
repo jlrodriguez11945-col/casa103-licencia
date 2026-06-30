@@ -89,7 +89,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCnjNrwSnoTsSA9aX4WPxnnrcZJtp6UdLs",
@@ -332,46 +332,52 @@ function render() {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-// Inicializar todas las tareas con valores por defecto de inmediato
-DATA.forEach((cat, ci) => {
-  cat.items.forEach((_, ii) => {
-    const id = buildId(ci, ii);
-    state[id] = { done: false, responsible: "", due: "", obs: "" };
-  });
-});
-render();
-
 const TOTAL_TASKS = DATA.reduce((sum, cat) => sum + cat.items.length, 0);
-let syncing = false;
+const DEFAULTS = () => ({ done: false, responsible: "", due: "", obs: "" });
 
-onValue(ref(db, "tasks"), (snapshot) => {
-  if (syncing) return;
-  const saved = snapshot.val() || {};
-
-  // Siempre reconstruir estado completo: default para todas, overlay con Firebase
+function applySnapshot(saved) {
   DATA.forEach((cat, ci) => {
     cat.items.forEach((_, ii) => {
       const id = buildId(ci, ii);
-      state[id] = saved[id]
-        ? { done: false, responsible: "", due: "", obs: "", ...saved[id] }
-        : { done: false, responsible: "", due: "", obs: "" };
+      state[id] = saved[id] ? { ...DEFAULTS(), ...saved[id] } : DEFAULTS();
     });
   });
+}
 
+// Carga inicial con get() — espera ambos antes de renderizar
+Promise.all([
+  get(ref(db, "tasks")),
+  get(ref(db, "colorMap"))
+]).then(([tasksSnap, colorSnap]) => {
+  const saved = tasksSnap.val() || {};
+  if (colorSnap.val()) colorMap = colorSnap.val();
+  applySnapshot(saved);
   render();
 
-  // Si Firebase no tiene todas las tareas, guardar el estado completo ahora
+  // Si Firebase no tiene todas las tareas, guardar el estado completo
   if (Object.keys(saved).length < TOTAL_TASKS) {
-    syncing = true;
-    set(ref(db, "tasks"), state).finally(() => { syncing = false; });
+    set(ref(db, "tasks"), state);
   }
-});
 
-onValue(ref(db, "colorMap"), (snapshot) => {
-  if (snapshot.val()) {
-    colorMap = snapshot.val();
+  // Solo después de cargar, escuchar cambios de otros usuarios
+  // firstFire=true para ignorar el disparo inmediato de onValue (ya lo cargamos con get)
+  let firstFire = true;
+  onValue(ref(db, "tasks"), (snapshot) => {
+    if (firstFire) { firstFire = false; return; }
+    applySnapshot(snapshot.val() || {});
     render();
-  }
+  });
+
+  onValue(ref(db, "colorMap"), (snapshot) => {
+    if (snapshot.val()) { colorMap = snapshot.val(); render(); }
+  });
+
+}).catch(() => {
+  // Si get() falla, inicializar con defaults y reintentar en 3 segundos
+  applySnapshot({});
+  render();
+  setTimeout(() => location.reload(), 3000);
+  document.getElementById("save-status").textContent = "Error de conexión, reintentando...";
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
