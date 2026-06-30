@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa 103 — Requerimientos Licencia</title>
+<style>
+  :root {
+    --bg: #f5f4f1;
+    --card: #ffffff;
+    --border: #e0ded7;
+    --border-strong: #c9c6bc;
+    --text: #2c2c2a;
+    --text-secondary: #5f5e5a;
+    --text-muted: #888780;
+    --accent: #0c447c;
+    --accent-bg: #e6f1fb;
+    --green: #173404;
+    --green-bg: #eaf3de;
+    --amber: #412402;
+    --amber-bg: #faeeda;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { background: var(--card); border: 0.5px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin: 0; }
+  .meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .metric { background: var(--card); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 12px 14px; text-align: center; }
+  .metric .num { font-size: 22px; font-weight: 500; }
+  .metric .label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .progress-bar-outer { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 24px; }
+  .progress-bar-inner { background: #3B6D11; height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+  .controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  select, input[type=text] { height: 34px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); padding: 0 10px; font-size: 13px; background: var(--card); color: var(--text); }
+  .filter-pill { font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 0.5px solid var(--border-strong); background: var(--card); cursor: pointer; color: var(--text-secondary); }
+  .filter-pill.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .category { background: var(--card); border: 0.5px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .category-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .category-title { font-size: 14px; font-weight: 500; }
+  .category-count { font-size: 12px; color: var(--text-muted); }
+  .category-body { border-top: 0.5px solid var(--border); }
+  .category-body.collapsed { display: none; }
+  .task-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 0.5px solid var(--border); border-left: 3px solid transparent; transition: background 0.2s; }
+  .task-row:last-child { border-bottom: none; }
+  .task-row.done { background: var(--green-bg); }
+  .task-checkbox { margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; }
+  .task-main { flex: 1; min-width: 0; }
+  .task-text { font-size: 13.5px; }
+  .task-row.done .task-text { text-decoration: line-through; color: var(--text-muted); }
+  .task-row-bottom { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+  .resp-input { height: 28px; font-size: 12px; width: 120px; padding: 0 8px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); }
+  .due-input { height: 28px; font-size: 12px; padding: 0 6px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); background: var(--card); color: var(--text); }
+  .obs-input { height: 28px; font-size: 12px; flex: 1; min-width: 140px; padding: 0 8px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); background: var(--card); color: var(--text); }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .badge-done { background: var(--green-bg); color: var(--green); }
+  .badge-pending { background: var(--amber-bg); color: var(--amber); }
+  .save-status { font-size: 11px; color: var(--text-muted); text-align: right; margin-bottom: 6px; min-height: 14px; }
+  .loading { text-align: center; padding: 40px; color: var(--text-muted); font-size: 14px; }
+  footer { margin-top: 24px; font-size: 12px; color: var(--text-muted); text-align: center; }
+  .online-badge { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3B6D11; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Casa 103 — Requerimientos licencia de construcción</h1>
+    <p class="subtitle">Acta de observaciones No. 054 · Radicado 2026-2-5716 · Secretaría de Urbanismo y Desarrollo Territorial, Sopó</p>
+    <p class="meta"><span class="online-badge"></span>Sincronizado en tiempo real · Fecha del acta: 20 de mayo de 2026 · Plazo: 30 días hábiles</p>
+  </header>
+
+  <div class="summary" id="summary"><div class="metric"><div class="num">...</div><div class="label">Cargando</div></div></div>
+  <div class="progress-bar-outer"><div class="progress-bar-inner" id="progress-bar" style="width:0%"></div></div>
+
+  <div class="controls">
+    <button class="filter-pill active" data-filter="all">Todas</button>
+    <button class="filter-pill" data-filter="pending">Pendientes</button>
+    <button class="filter-pill" data-filter="done">Completadas</button>
+    <select id="resp-filter" style="margin-left:auto;"><option value="all">Todos los responsables</option></select>
+  </div>
+
+  <div id="save-status" class="save-status"></div>
+  <div id="categories"><div class="loading">Conectando con Firebase...</div></div>
+  <footer>Cambios sincronizados en tiempo real para todos los usuarios · RequerimientosLicC103</footer>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCnjNrwSnoTsSA9aX4WPxnnrcZJtp6UdLs",
+  authDomain: "requerimientoslicc103.firebaseapp.com",
+  databaseURL: "https://requerimientoslicc103-default-rtdb.firebaseio.com",
+  projectId: "requerimientoslicc103",
+  storageBucket: "requerimientoslicc103.firebasestorage.app",
+  messagingSenderId: "57073051039",
+  appId: "1:57073051039:web:d04e32c573c6546e6e89aa"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const DATA = [
+  { cat: "Revisión documental", items: [
+    "Aportar poder especial, amplio y suficiente notariado donde el representante legal de CONSTRUCTORA BELLAREA S.A.S autorice al solicitante consignado en formulario único nacional.",
+    "Aportar impresa la escritura No. 911 del 31/08/2016 en medio magnético CD/USB.",
+    "Aportar Paz y Salvo del impuesto predial, vigencia 2026.",
+    "El acuerdo de cooperación y confidencialidad entre PLANETA S.A.S ESP y PROGRESAR E.S.P no presenta firma por todas las partes, aportar documento homologo que subsane la observación.",
+    "Aportar disponibilidad del servicio público de aseo, expedido por la empresa prestadora del servicio público, citando adecuadamente el predio objeto de la solicitud de licencia.",
+    "Aportar documento del órgano competente de la administración de la propiedad horizontal o el documento que haga sus veces, con autorización para la ejecución de las obras solicitadas."
+  ]},
+  { cat: "Determinantes ambientales y riesgo", items: [
+    "Anotación de conocimiento y cumplimiento del Artículo 5: lineamientos generales en materia de infraestructura determinados en la Resolución 0138 del 31 de enero de 2014 'Por cual se Realindera la Reserva Forestal Protectora de la Cuenca Alta del Rio Bogotá y se toman otras determinantes', en rótulo de planimetrías arquitectónica de reforestación e implantación.",
+    "Aportar Plan de Manejo Ambiental (PMA), detallando caracterización y medidas de mitigación para el proyecto objeto de licenciamiento, el estudio se debe presentar con firma manuscrita de un profesional idóneo, aportando tarjeta profesional, vigencia y memorial de responsabilidad.",
+    "Se identifica zona de amenaza media por incendios forestales. De conformidad al decreto 1807 de 2014 se requiere, realizar estudio detallado de riesgo para amenaza por incendios forestales.",
+    "Al consultar el modelo de ocupación territorial concertado con la CAR se evidencia la existencia de un drenaje en el costado noroccidental del predio, por lo tanto, se requiere aportar identificación y análisis topográfico, concepto técnico sobre la existencia y clasificación del drenaje, así como la demarcación de su ronda hídrica. En caso configurar la presencia del elemento se deberá aportar justificación técnica."
+  ]},
+  { cat: "Elementos arquitectónicos", items: [
+    "Se requiere que el profesional responsable Director de la Construcción aporte memorial de responsabilidad con firma manuscrita, tarjeta profesional, vigencia profesional y comprobantes de experiencia específica mayor a 3 años o estudios de posgrados conforme a los lineamientos establecidos en la guía para diligenciar el formulario único nacional Resolución 1026 de 2021.",
+    "Se requiere que el profesional responsable Arquitecto Proyectista aporte memorial de responsabilidad con firma manuscrita y vigencia profesional.",
+    "Se requiere que el profesional responsable Topógrafo aporte memorial de responsabilidad con firma manuscrita.",
+    "Complementar rotulo de pliegos arquitectónicos con cedula catastral de treinta (30) dígitos, numero de matricula inmobiliaria, firma manuscrita del profesional Arquitecto Proyectista, titular o apoderado.",
+    "Aportar implantación arquitectónica en escala 1:200 o 1:150 para aumentar el detalle de su contenido, complementar cotas de nivel con etiquetas indicativas de altura de cota.",
+    "Se debe especificar las materialidades de las superficies exteriores, estas se deben plantear con condiciones de permeabilidad.",
+    "En franjas de aislamientos laterales y posterior no se permite desarrollo de superficies exteriores y áreas construidas.",
+    "En planta de segundo piso se requiere corrección del símbolo de subida en punto fijo.",
+    "Aportar medio magnético (USB/CD) con archivos CAD con polilínea o trama que permita verificar planteamiento de área construida, área ocupada, superficies exteriores, así como áreas objeto de las modalidades de licencia de la presente solicitud.",
+    "Diagramar en plantas arquitectónicas simbología indicativa de vistas de fachadas.",
+    "En planta de segundo piso sobre eje 3 se evidencia inconsistencia con proyección de ventanería en fachada lateral izquierda, se requiere corrección.",
+    "En fachadas y cortes arquitectónicos se requiere acotación entre ejes en sentido horizontal.",
+    "Se requiere que los cortes arquitectónicos incluyan los elementos estructurales, especialmente los correspondientes al sistema de cimentación, a fin de verificar su concordancia con los diseños estructurales."
+  ]},
+  { cat: "Determinantes técnicas y normativas", items: [
+    "Se evidencia inconsistencia en cotas de estudio topográfico e implantación arquitectónica, se requiere concordancia y corrección.",
+    "Dado que la información catastral debe corresponder a la realidad física del predio, se advierte que, según la escritura pública No. 911 del 31 de agosto de 2018 y el certificado de tradición No. 176-111122, el área registrada es de 2.297,05 m². No obstante, la planimetría técnica reporta una cabida de 1.529,97 m², diferencia que supera los rangos de tolerancia establecidos en el artículo 15 de la Resolución Conjunta IGAC No. 1101 y SNR No. 11344 del 31 de diciembre de 2020. En consecuencia, se debe tramitar la actualización de cabida y linderos ante el gestor catastral del municipio de Sopó o, en su defecto, presentar la subsanación del requerimiento.",
+    "Se requiere presentar un cuadro de áreas que compare las condiciones permitidas por la normativa vigente con las condiciones propuestas (área del lote, área construida primer piso, área total construida, índice de ocupación permitido y propuesto, índice de construcción permitido y propuesto, superficies exteriores, área de forestación exigido y propuesto, parqueaderos privados).",
+    "De conformidad con el artículo 2.2.6.1.2.3.6, numeral 1, del Decreto 1077 de 2015 y con las anotaciones de servidumbre de redes de servicios consignadas en el certificado de tradición, se solicita al constructor responsable y al arquitecto proyectista aportar certificado de cumplimiento de las distancias mínimas de seguridad frente a redes de energía, conforme al artículo 3.10.1 de la Resolución 40117 de 2024 Reglamento Técnico de Instalaciones Eléctricas (RETIE).",
+    "Aportar pliego de implantación arquitectónica con los aislamientos normativos aplicables al uso de vivienda agrupada, de conformidad con el artículo 165 del Decreto 080 de 2010. Además, se debe indicar el sentido de la demarcación de los aislamientos frontal, lateral y posterior, teniendo en cuenta que se advierte un error en el ancho exigido para el aislamiento posterior."
+  ]},
+  { cat: "Reforestación", items: [
+    "Aportar el pliego de reforestación con el cuadro de áreas que permita verificar el cumplimiento del área mínima exigida para reforestación, garantizando que al menos el 70% del área del predio se destine a zonas verdes, plantación o reforestación, de conformidad con el artículo 168 del Decreto 080 de 2010 (POT Municipal). Área de reforestación (Cobertura verde libre) = Área de lote − Área ocupada en primer piso − Superficies exteriores con tratamiento duro o permeable."
+  ]},
+  { cat: "Elementos estructurales", items: [
+    "Los diseñadores estructurales deben acreditar estudios de posgrado o experiencia mayor a cinco (5) años en el área de estructuras, contados a partir de la expedición de la tarjeta profesional, bajo la dirección de un profesional facultado para tal fin, según lo previsto en la Ley 400 de 1997 y las normas que la reglamentan. Según lo previsto en la Ley 400 de 1997, artículo 27, el responsable del diseño estructural debe adjuntar certificaciones de experiencia o certificación de estudios de posgrado en el área requerida.",
+    "Los diseñadores de elementos no estructurales deben poseer una experiencia mayor de tres (3) años de ejercicio, contados a partir de la expedición de la tarjeta profesional, bajo la dirección de un profesional facultado para tal fin, en una o varias actividades, tales como diseño estructural, diseño de elementos no estructurales, trabajos geotécnicos, construcción, interventoría o supervisión técnica, o acreditar estudios de posgrado en el área de estructuras o ingeniería sísmica, según lo previsto en la Ley 400 de 1997 y las normas que la reglamentan.",
+    "Los profesionales responsables del levantamiento topográfico deben presentar un Memorial de responsabilidad, debidamente firmado en original, en el que se hacen responsables de los diseños y estudios presentados y exime al municipio y la oficina de urbanismo y planeación territorial de cualquier responsabilidad sobre los mismos.",
+    "Los profesionales responsables del diseño estructural y del diseño de elementos no estructurales deben adjuntar el certificado de antecedentes profesionales vigente, el cual debe estar debidamente firmado en original."
+  ]},
+  { cat: "Planos estructurales (NSR-10 Sección A.1.5.2.1)", items: [
+    "Los elementos estructurales y sus ejes deben coincidir en cada una de las plantas arquitectónicas.",
+    "Todos los planos estructurales que contengan elementos de cimentación deben ir firmados por el ingeniero encargado del diseño de la cimentación y estudio de suelos. Particularmente, no se tiene la firma del ingeniero geotecnista en los planos donde se muestran las dimensiones y ubicación de las zapatas y las vigas de cimentación.",
+    "Se debe verificar el plano en planta de localización de las columnas ya que las dimensiones de las columnas presentadas no coinciden con las dimensiones presentadas en los diagramas de interacción y en los despieces del plano E-2."
+  ]},
+  { cat: "Movimiento de tierras", items: [
+    "Los planos de movimiento de tierras, que incluyen excavaciones y rellenos, deben estar aprobados y firmados por el ingeniero geotecnista y el topógrafo, quienes son los profesionales competentes para certificar la correcta definición de niveles, pendientes y estabilidad del terreno."
+  ]},
+  { cat: "Presentación de la respuesta", items: [
+    "Presentar oficio de respuesta citando adecuadamente el radicado del proceso de licenciamiento y atendiendo detalladamente cada uno de los puntos señalados en el acta de observaciones.",
+    "Aportar documentos de respuesta en carpetas de cartón tamaño oficio (8.5\" x 13\"), con gancho legajador plástico.",
+    "Aportar bolsas de acetato tamaño oficio (8.5\" x 13\"), una unidad por cada plano presentado.",
+    "Se verificará que la escala relacionada en planimetrías técnicas sea concordante al formato de impresión.",
+    "Aportar copia magnética (USB) de archivos CAD con correcciones, ajustes o modificaciones del planteamiento de respuesta al proyecto arquitectónico y estructural.",
+    "Aportar en físico segunda copia de planimetrías.",
+    "Una vez realizados los ajustes al proyecto presentar una (1) copia impresa de todos los documentos de la solicitud, presentar dos (02) copias impresas del proyecto de Arquitectónico, dos (02) copias de planos estructurales (todos los planos deben estar firmados en original por los diseñadores del proyecto: arquitecto, ingeniero civil y Geotecnista y propietarios(s)) y una copia de los diseños en USB, en AutoCAD o versión compatible."
+  ]}
+];
+
+const RESP_PALETTE = [
+  { bg: "#E6F1FB", border: "#378ADD", text: "#0C447C" },
+  { bg: "#FAECE7", border: "#D85A30", text: "#712B13" },
+  { bg: "#E1F5EE", border: "#1D9E75", text: "#085041" },
+  { bg: "#FBEAF0", border: "#D4537E", text: "#72243E" },
+  { bg: "#EEEDFE", border: "#7F77DD", text: "#3C3489" },
+  { bg: "#FAEEDA", border: "#BA7517", text: "#633806" },
+  { bg: "#EAF3DE", border: "#639922", text: "#27500A" },
+  { bg: "#F1EFE8", border: "#888780", text: "#444441" }
+];
+
+let colorMap = {};
+let state = {};
+let currentFilter = "all";
+let currentResp = "all";
+let renderScheduled = false;
+
+function buildId(ci, ii) { return "t_" + ci + "_" + ii; }
+
+function colorForResp(name) {
+  if (!name) return null;
+  if (colorMap[name]) return colorMap[name];
+  const usedIdx = new Set(Object.values(colorMap).map(c => c.idx));
+  let idx = 0;
+  while (usedIdx.has(idx) && idx < RESP_PALETTE.length - 1) idx++;
+  const color = { idx, ...RESP_PALETTE[idx] };
+  colorMap[name] = color;
+  set(ref(db, "colorMap"), colorMap);
+  return color;
+}
+
+function setStatus(msg) {
+  document.getElementById("save-status").textContent = msg;
+  if (msg) setTimeout(() => { document.getElementById("save-status").textContent = ""; }, 2000);
+}
+
+function saveTask(id) {
+  set(ref(db, "tasks/" + id), state[id])
+    .then(() => setStatus("Guardado"))
+    .catch(() => setStatus("Error al guardar"));
+}
+
+function render() {
+  const catsEl = document.getElementById("categories");
+  const collapsedCats = new Set();
+  catsEl.querySelectorAll(".category-body.collapsed").forEach((el, i) => {
+    collapsedCats.add(el.dataset.catidx);
+  });
+
+  catsEl.innerHTML = "";
+  let totalDone = 0, totalCount = 0;
+  const respSet = new Set();
+
+  DATA.forEach((cat, ci) => {
+    let visibleItems = 0, catDone = 0;
+    const bodyDiv = document.createElement("div");
+    bodyDiv.className = "category-body" + (collapsedCats.has(String(ci)) ? " collapsed" : "");
+    bodyDiv.dataset.catidx = ci;
+
+    cat.items.forEach((item, ii) => {
+      const id = buildId(ci, ii);
+      if (!state[id]) state[id] = { done: false, responsible: "", due: "", obs: "" };
+      const t = state[id];
+      totalCount++;
+      if (t.done) { totalDone++; catDone++; }
+      if (t.responsible) respSet.add(t.responsible);
+      if (currentFilter === "pending" && t.done) return;
+      if (currentFilter === "done" && !t.done) return;
+      if (currentResp !== "all" && t.responsible !== currentResp) return;
+      visibleItems++;
+
+      const respColor = colorForResp(t.responsible);
+      const row = document.createElement("div");
+      row.className = "task-row" + (t.done ? " done" : "");
+      if (respColor) row.style.borderLeftColor = respColor.border;
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.className = "task-checkbox"; cb.checked = t.done;
+      cb.addEventListener("change", () => {
+        state[id].done = cb.checked;
+        saveTask(id);
+        render();
+      });
+
+      const main = document.createElement("div");
+      main.className = "task-main";
+      const textDiv = document.createElement("div");
+      textDiv.className = "task-text";
+      textDiv.textContent = item;
+
+      const bottom = document.createElement("div");
+      bottom.className = "task-row-bottom";
+
+      const respInput = document.createElement("input");
+      respInput.type = "text"; respInput.className = "resp-input";
+      respInput.placeholder = "Responsable"; respInput.value = t.responsible || "";
+      if (respColor) { respInput.style.borderColor = respColor.border; respInput.style.background = respColor.bg; respInput.style.color = respColor.text; }
+      respInput.addEventListener("change", () => {
+        state[id].responsible = respInput.value.trim();
+        saveTask(id);
+        render();
+      });
+
+      const dueInput = document.createElement("input");
+      dueInput.type = "date"; dueInput.className = "due-input"; dueInput.value = t.due || "";
+      dueInput.addEventListener("change", () => { state[id].due = dueInput.value; saveTask(id); });
+
+      const badge = document.createElement("span");
+      badge.className = "badge " + (t.done ? "badge-done" : "badge-pending");
+      badge.textContent = t.done ? "Completada" : "Pendiente";
+
+      const obsInput = document.createElement("input");
+      obsInput.type = "text"; obsInput.className = "obs-input";
+      obsInput.placeholder = "Observaciones"; obsInput.value = t.obs || "";
+      obsInput.addEventListener("change", () => { state[id].obs = obsInput.value; saveTask(id); });
+
+      bottom.appendChild(respInput);
+      bottom.appendChild(dueInput);
+      bottom.appendChild(badge);
+      bottom.appendChild(obsInput);
+      main.appendChild(textDiv);
+      main.appendChild(bottom);
+      row.appendChild(cb);
+      row.appendChild(main);
+      bodyDiv.appendChild(row);
+    });
+
+    if (visibleItems === 0) return;
+
+    const catDiv = document.createElement("div");
+    catDiv.className = "category";
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.innerHTML = '<span class="category-title">' + cat.cat + '</span><span class="category-count">' + catDone + ' / ' + cat.items.length + '</span>';
+    header.addEventListener("click", () => bodyDiv.classList.toggle("collapsed"));
+    catDiv.appendChild(header);
+    catDiv.appendChild(bodyDiv);
+    catsEl.appendChild(catDiv);
+  });
+
+  const pct = totalCount ? Math.round(totalDone / totalCount * 100) : 0;
+  document.getElementById("summary").innerHTML =
+    '<div class="metric"><div class="num">' + totalCount + '</div><div class="label">Total</div></div>' +
+    '<div class="metric"><div class="num">' + totalDone + '</div><div class="label">Completadas</div></div>' +
+    '<div class="metric"><div class="num">' + (totalCount - totalDone) + '</div><div class="label">Pendientes</div></div>' +
+    '<div class="metric"><div class="num">' + pct + '%</div><div class="label">Avance</div></div>';
+  document.getElementById("progress-bar").style.width = pct + "%";
+
+  const respFilter = document.getElementById("resp-filter");
+  const curVal = respFilter.value;
+  respFilter.innerHTML = '<option value="all">Todos los responsables</option>';
+  Array.from(respSet).sort().forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r; opt.textContent = r;
+    respFilter.appendChild(opt);
+  });
+  if (respSet.has(curVal)) respFilter.value = curVal;
+}
+
+// Escuchar cambios en tiempo real desde Firebase
+onValue(ref(db, "tasks"), (snapshot) => {
+  const data = snapshot.val() || {};
+  // Mezclar con estado local para no perder cambios en vuelo
+  DATA.forEach((cat, ci) => {
+    cat.items.forEach((item, ii) => {
+      const id = buildId(ci, ii);
+      if (data[id]) state[id] = data[id];
+      else if (!state[id]) state[id] = { done: false, responsible: "", due: "", obs: "" };
+    });
+  });
+  render();
+});
+
+onValue(ref(db, "colorMap"), (snapshot) => {
+  const data = snapshot.val();
+  if (data) colorMap = data;
+});
+
+document.querySelectorAll(".filter-pill").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-pill").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById("resp-filter").addEventListener("change", e => {
+  currentResp = e.target.value;
+  render();
+});
+</script>
+</body>
+</html>
