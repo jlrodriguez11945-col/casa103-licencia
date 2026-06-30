@@ -205,10 +205,14 @@ function setStatus(msg) {
   if (msg) setTimeout(() => { document.getElementById("save-status").textContent = ""; }, 2000);
 }
 
-function saveTask(id) {
-  set(ref(db, "tasks/" + id), state[id])
-    .then(() => setStatus("Guardado"))
-    .catch(() => setStatus("Error al guardar"));
+let saveTimeout = null;
+function saveAll() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    set(ref(db, "tasks"), state)
+      .then(() => setStatus("Guardado"))
+      .catch(() => setStatus("Error al guardar"));
+  }, 300);
 }
 
 function render() {
@@ -249,7 +253,7 @@ function render() {
       cb.type = "checkbox"; cb.className = "task-checkbox"; cb.checked = t.done;
       cb.addEventListener("change", () => {
         state[id].done = cb.checked;
-        saveTask(id);
+        saveAll();
         render();
       });
 
@@ -268,13 +272,13 @@ function render() {
       if (respColor) { respInput.style.borderColor = respColor.border; respInput.style.background = respColor.bg; respInput.style.color = respColor.text; }
       respInput.addEventListener("change", () => {
         state[id].responsible = respInput.value.trim();
-        saveTask(id);
+        saveAll();
         render();
       });
 
       const dueInput = document.createElement("input");
       dueInput.type = "date"; dueInput.className = "due-input"; dueInput.value = t.due || "";
-      dueInput.addEventListener("change", () => { state[id].due = dueInput.value; saveTask(id); });
+      dueInput.addEventListener("change", () => { state[id].due = dueInput.value; saveAll(); });
 
       const badge = document.createElement("span");
       badge.className = "badge " + (t.done ? "badge-done" : "badge-pending");
@@ -283,7 +287,7 @@ function render() {
       const obsInput = document.createElement("input");
       obsInput.type = "text"; obsInput.className = "obs-input";
       obsInput.placeholder = "Observaciones"; obsInput.value = t.obs || "";
-      obsInput.addEventListener("change", () => { state[id].obs = obsInput.value; saveTask(id); });
+      obsInput.addEventListener("change", () => { state[id].obs = obsInput.value; saveAll(); });
 
       bottom.appendChild(respInput);
       bottom.appendChild(dueInput);
@@ -337,16 +341,30 @@ DATA.forEach((cat, ci) => {
 });
 render();
 
-// Actualizar desde Firebase cuando lleguen los datos
+const TOTAL_TASKS = DATA.reduce((sum, cat) => sum + cat.items.length, 0);
+let syncing = false;
+
 onValue(ref(db, "tasks"), (snapshot) => {
-  const data = snapshot.val() || {};
+  if (syncing) return;
+  const saved = snapshot.val() || {};
+
+  // Siempre reconstruir estado completo: default para todas, overlay con Firebase
   DATA.forEach((cat, ci) => {
     cat.items.forEach((_, ii) => {
       const id = buildId(ci, ii);
-      if (data[id]) state[id] = data[id];
+      state[id] = saved[id]
+        ? { done: false, responsible: "", due: "", obs: "", ...saved[id] }
+        : { done: false, responsible: "", due: "", obs: "" };
     });
   });
+
   render();
+
+  // Si Firebase no tiene todas las tareas, guardar el estado completo ahora
+  if (Object.keys(saved).length < TOTAL_TASKS) {
+    syncing = true;
+    set(ref(db, "tasks"), state).finally(() => { syncing = false; });
+  }
 });
 
 onValue(ref(db, "colorMap"), (snapshot) => {
