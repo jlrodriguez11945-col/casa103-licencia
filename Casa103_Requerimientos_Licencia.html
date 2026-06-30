@@ -238,6 +238,9 @@ function parseFirebaseVal(val) {
 }
 
 function render(preserveCollapsed = true) {
+  const stateKeys = Object.keys(state);
+  dbg("[render] state.keys=" + stateKeys.length + " filtro=" + currentFilter + " resp=" + currentResp + " muestra=" + stateKeys.slice(0,4).join(","));
+
   const catsEl = document.getElementById("categories");
   const collapsedCats = new Set();
   if (preserveCollapsed) {
@@ -324,6 +327,7 @@ function render(preserveCollapsed = true) {
       bodyDiv.appendChild(row);
     });
 
+    dbg("[cat" + ci + "] '" + cat.cat.slice(0,20) + "' visible=" + visibleItems + " done=" + catDone + (visibleItems === 0 ? " → OMITIDA" : ""));
     if (visibleItems === 0) return;
 
     const catDiv = document.createElement("div");
