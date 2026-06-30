@@ -184,7 +184,6 @@ let colorMap = {};
 let state = {};
 let currentFilter = "all";
 let currentResp = "all";
-let renderScheduled = false;
 
 function buildId(ci, ii) { return "t_" + ci + "_" + ii; }
 
@@ -205,22 +204,37 @@ function setStatus(msg) {
   if (msg) setTimeout(() => { document.getElementById("save-status").textContent = ""; }, 2000);
 }
 
+function buildFullState(saved) {
+  const s = {};
+  DATA.forEach((cat, ci) => {
+    cat.items.forEach((_, ii) => {
+      const id = buildId(ci, ii);
+      const base = { done: false, responsible: "", due: "", obs: "" };
+      s[id] = saved && saved[id] ? Object.assign(base, saved[id]) : base;
+    });
+  });
+  return s;
+}
+
 let saveTimeout = null;
 function saveAll() {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
-    set(ref(db, "tasks"), state)
-      .then(() => setStatus("Guardado"))
+    // Guardar como JSON string para evitar problemas de Firebase con objetos
+    set(ref(db, "state_json"), JSON.stringify(state))
+      .then(() => setStatus("Guardado ✓"))
       .catch(() => setStatus("Error al guardar"));
-  }, 300);
+  }, 400);
 }
 
-function render() {
+function render(preserveCollapsed = true) {
   const catsEl = document.getElementById("categories");
   const collapsedCats = new Set();
-  catsEl.querySelectorAll(".category-body.collapsed").forEach((el, i) => {
-    collapsedCats.add(el.dataset.catidx);
-  });
+  if (preserveCollapsed) {
+    catsEl.querySelectorAll(".category-body.collapsed").forEach((el) => {
+      collapsedCats.add(el.dataset.catidx);
+    });
+  }
 
   catsEl.innerHTML = "";
   let totalDone = 0, totalCount = 0;
@@ -333,51 +347,36 @@ function render() {
 }
 
 const TOTAL_TASKS = DATA.reduce((sum, cat) => sum + cat.items.length, 0);
-const DEFAULTS = () => ({ done: false, responsible: "", due: "", obs: "" });
 
-function applySnapshot(saved) {
-  DATA.forEach((cat, ci) => {
-    cat.items.forEach((_, ii) => {
-      const id = buildId(ci, ii);
-      state[id] = saved[id] ? { ...DEFAULTS(), ...saved[id] } : DEFAULTS();
-    });
-  });
-}
-
-// Carga inicial con get() — espera ambos antes de renderizar
+// Carga inicial
 Promise.all([
-  get(ref(db, "tasks")),
+  get(ref(db, "state_json")),
   get(ref(db, "colorMap"))
-]).then(([tasksSnap, colorSnap]) => {
-  const saved = tasksSnap.val() || {};
+]).then(([snap, colorSnap]) => {
+  let saved = {};
+  try { if (snap.val()) saved = JSON.parse(snap.val()); } catch(e) {}
   if (colorSnap.val()) colorMap = colorSnap.val();
-  applySnapshot(saved);
-  render();
+  state = buildFullState(saved);
+  render(false);
 
-  // Si Firebase no tiene todas las tareas, guardar el estado completo
-  if (Object.keys(saved).length < TOTAL_TASKS) {
-    set(ref(db, "tasks"), state);
-  }
-
-  // Solo después de cargar, escuchar cambios de otros usuarios
-  // firstFire=true para ignorar el disparo inmediato de onValue (ya lo cargamos con get)
+  // Escuchar cambios de otros usuarios (ignorar primer disparo que ya cargamos)
   let firstFire = true;
-  onValue(ref(db, "tasks"), (snapshot) => {
+  onValue(ref(db, "state_json"), (s) => {
     if (firstFire) { firstFire = false; return; }
-    applySnapshot(snapshot.val() || {});
-    render();
+    let remote = {};
+    try { if (s.val()) remote = JSON.parse(s.val()); } catch(e) {}
+    state = buildFullState(remote);
+    render(false);
   });
 
-  onValue(ref(db, "colorMap"), (snapshot) => {
-    if (snapshot.val()) { colorMap = snapshot.val(); render(); }
+  onValue(ref(db, "colorMap"), (s) => {
+    if (s.val()) { colorMap = s.val(); render(false); }
   });
 
 }).catch(() => {
-  // Si get() falla, inicializar con defaults y reintentar en 3 segundos
-  applySnapshot({});
+  state = buildFullState({});
   render();
-  setTimeout(() => location.reload(), 3000);
-  document.getElementById("save-status").textContent = "Error de conexión, reintentando...";
+  setStatus("Sin conexión — trabajando en modo local");
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
