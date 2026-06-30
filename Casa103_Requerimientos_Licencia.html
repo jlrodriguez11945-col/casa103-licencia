@@ -356,48 +356,59 @@ function render(preserveCollapsed = true) {
   if (respSet.has(curVal)) respFilter.value = curVal;
 }
 
-// Carga inicial: tasks (primario) con fallback a tasks_json (legado)
-Promise.all([
-  get(ref(db, "tasks")),
-  get(ref(db, "tasks_json")),
-  get(ref(db, "colorMap"))
-]).then(([tasksSnap, legacySnap, colorSnap]) => {
-  let saved = {};
-  const tasksVal = tasksSnap.val();
-  const legacyVal = legacySnap.val();
+// ── Debug visible ──────────────────────────────────────────────
+const debugEl = document.createElement("pre");
+debugEl.id = "debug-panel";
+debugEl.style.cssText = "background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:12px;font-size:11px;margin-bottom:16px;white-space:pre-wrap;word-break:break-all;color:#333;";
+document.getElementById("save-status").after(debugEl);
+function dbg(msg) { debugEl.textContent += msg + "\n"; }
 
-  if (tasksVal) {
-    saved = parseFirebaseVal(tasksVal);
-  } else if (legacyVal) {
-    saved = parseFirebaseVal(legacyVal);
-    // migrar al nodo tasks como objeto plano
-    set(ref(db, "tasks"), buildFullState(saved));
-  }
+// ── Carga principal via onValue (más fiable que get()) ──────────
+let initialized = false;
 
-  if (colorSnap.val()) colorMap = colorSnap.val();
-  state = buildFullState(saved);
-  render(false);
+onValue(ref(db, "tasks"), (snap) => {
+  const val = snap.val();
+  dbg("[tasks] tipo=" + typeof val + " valor=" + (val === null ? "null" : val === undefined ? "undefined" : JSON.stringify(val).slice(0, 120)));
 
-  // Escuchar cambios de otros usuarios en el nodo tasks
-  let firstFire = true;
-  onValue(ref(db, "tasks"), (s) => {
-    if (firstFire) { firstFire = false; return; }
-    state = buildFullState(parseFirebaseVal(s.val()));
+  if (!initialized) {
+    initialized = true;
+    // También revisar tasks_json como fallback
+    get(ref(db, "tasks_json")).then(legacySnap => {
+      const legacyVal = legacySnap.val();
+      dbg("[tasks_json] tipo=" + typeof legacyVal + " valor=" + (legacyVal === null ? "null" : JSON.stringify(legacyVal).slice(0, 120)));
+
+      let saved = {};
+      if (val) {
+        saved = parseFirebaseVal(val);
+        dbg("[load] fuente=tasks claves=" + Object.keys(saved).length);
+      } else if (legacyVal) {
+        saved = parseFirebaseVal(legacyVal);
+        dbg("[load] fuente=tasks_json claves=" + Object.keys(saved).length + " → migrando a tasks");
+        set(ref(db, "tasks"), buildFullState(saved));
+      } else {
+        dbg("[load] AMBOS NODOS VACÍOS — base de datos vacía en estas rutas");
+      }
+
+      get(ref(db, "colorMap")).then(cs => { if (cs.val()) colorMap = cs.val(); });
+      state = buildFullState(saved);
+      render(false);
+    });
+  } else if (val) {
+    state = buildFullState(parseFirebaseVal(val));
     render(false);
-  });
-
-  onValue(ref(db, "colorMap"), (s) => {
-    if (s.val()) { colorMap = s.val(); render(false); }
-  });
-
-}).catch((err) => {
-  console.error("Firebase error:", err);
+  }
+}, (err) => {
+  dbg("[ERROR] " + err.code + ": " + err.message);
   const banner = document.getElementById("error-banner");
   document.getElementById("error-detail").textContent = " " + (err.code || err.message || String(err));
   banner.style.display = "block";
   state = buildFullState({});
   render();
   setStatus("Sin conexión — trabajando en modo local");
+});
+
+onValue(ref(db, "colorMap"), (s) => {
+  if (s.val()) { colorMap = s.val(); if (initialized) render(false); }
 });
 
 document.querySelectorAll(".filter-pill").forEach(btn => {
